@@ -37,10 +37,10 @@ jobs:
         
         # Create a launcher script
         cat <<EOF > build/usr/bin/netusermon-daemon
-#!/bin/bash
-export PYTHONPATH=\$PYTHONPATH:/usr/share/netusermon-daemon
-python3 /usr/share/netusermon-daemon/daemon/main.py "\$@"
-EOF
+        #!/bin/bash
+        export PYTHONPATH=\$PYTHONPATH:/usr/share/netusermon-daemon
+        python3 /usr/share/netusermon-daemon/daemon/main.py "\$@"
+        EOF
         chmod +x build/usr/bin/netusermon-daemon
         
     - name: Install FPM

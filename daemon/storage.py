@@ -1,10 +1,11 @@
 import sqlite3
 import os
-from common.constants import DB_PATH
+from common import constants
 
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    db_path = constants.DB_PATH
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS dns_logs (
@@ -19,7 +20,7 @@ def init_db():
     conn.close()
 
 def log_dns_query(uid, username, domain):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(constants.DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO dns_logs (uid, username, domain)

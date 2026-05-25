@@ -75,3 +75,17 @@ EOF
         path: |
           *.deb
           *.rpm
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        distro: [ubi9, debian, ubuntu-24.04, fedora-40]
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run Integration Tests (${{ matrix.distro }})
+      run: |
+        docker build -t netusermon-test:${{ matrix.distro }} -f tests/integration/Dockerfile.${{ matrix.distro }} .
+        docker run --privileged netusermon-test:${{ matrix.distro }}

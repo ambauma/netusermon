@@ -1,0 +1,33 @@
+FROM fedora:40
+
+# Fedora 40 is modern and supports the new GLib/girepository-2.0
+RUN dnf install -y python3 python3-pip iptables sqlite iproute procps-ng curl dbus \
+                   dbus-common dbus-tools dbus-daemon \
+                   glib2-devel gobject-introspection-devel cairo-devel cairo-gobject-devel \
+                   pkgconf-pkg-config libnfnetlink-devel libnetfilter_queue-devel \
+                   gcc python3-devel gobject-introspection systemd && \
+    dnf clean all
+
+# Test without the pin to verify compatibility with PyGObject 3.50.0+
+RUN pip3 install scapy NetfilterQueue pydbus PyGObject
+
+RUN useradd -m -u 1001 testuser
+RUN mkdir -p /usr/share/netusermon-daemon/daemon \
+             /usr/share/netusermon-daemon/common \
+             /etc/dbus-1/system.d \
+             /var/lib/netusermon
+
+COPY daemon /usr/share/netusermon-daemon/daemon
+COPY common /usr/share/netusermon-daemon/common
+COPY etc/dbus-1/system.d/org.netusermon.Daemon.conf /etc/dbus-1/system.d/
+
+RUN echo '#!/bin/bash' > /usr/bin/netusermon-daemon && \
+    echo 'export PYTHONPATH=$PYTHONPATH:/usr/share/netusermon-daemon' >> /usr/bin/netusermon-daemon && \
+    echo 'python3 /usr/share/netusermon-daemon/daemon/main.py "$@"' >> /usr/bin/netusermon-daemon && \
+    chmod +x /usr/bin/netusermon-daemon
+
+WORKDIR /usr/share/netusermon-daemon
+COPY tests/integration/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

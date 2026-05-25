@@ -1,4 +1,4 @@
 scapy
 NetfilterQueue
 pydbus
-gi
+PyGObject<3.50.0

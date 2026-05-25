@@ -59,6 +59,73 @@ The raw logs are stored in a protected SQLite database. You must have root privi
 sudo sqlite3 /var/lib/netusermon/data.db "SELECT * FROM dns_logs ORDER BY timestamp DESC LIMIT 10;"
 ```
 
+## Developer Guide
+Welcome! NetUserMon is designed to be modular and easy to extend.
+
+### Prerequisites
+To develop and test the daemon locally, you will need several system-level development libraries to build the Python dependencies (`PyGObject`, `NetfilterQueue`).
+
+**Debian/Ubuntu**:
+```bash
+sudo apt-get install python3-dev libglib2.0-dev libgirepository1.0-dev libcairo2-dev pkg-config libnfnetlink-dev libnetfilter-queue-dev
+```
+
+**RHEL/Fedora/CentOS Stream**:
+```bash
+sudo dnf install python3-devel glib2-devel gobject-introspection-devel cairo-devel pkgconf-pkg-config libnfnetlink-devel libnetfilter_queue-devel
+```
+
+- **Python 3.10+**
+- **Docker**: For running integration tests across distributions.
+
+> **Note on PyGObject**: If you are using an older Linux distribution (e.g., Ubuntu 22.04 or earlier), `PyGObject` is pinned to `<3.50.0` in `requirements.txt`. This is because newer versions require GLib 2.80+ (`girepository-2.0`), which is only available in very recent releases (e.g., Ubuntu 24.04).
+
+### Local Development Setup
+1.  **Clone the Repo**:
+    ```bash
+    git clone https://github.com/your-repo/netusermon.git
+    cd netusermon
+    ```
+2.  **Set up Virtual Environment**:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+3. **Run the Daemon (Manual)**:
+    **Note on Sudo**: Use `-E` to preserve your virtualenv's `PYTHONPATH`:
+    ```bash
+    sudo -E PYTHONPATH=. python3 daemon/main.py
+    ```
+
+    **Safe Development Tip (Mirroring vs. Intercepting)**:
+    If the daemon crashes while using `NFQUEUE`, your internet may hang. For safer local testing, you can **mirror** (TEE) the traffic instead of intercepting it:
+    ```bash
+    # Mirror DNS traffic to a separate "log-only" interface (won't break your internet)
+    sudo iptables -t mangle -A POSTROUTING -p udp --dport 53 -j TEE --gateway 127.0.0.1
+    ```
+    *Note: The daemon is designed for `NFQUEUE` in production to ensure "un-bypassable" logging.*
+
+
+### Running Tests
+We use **pytest** and **Docker** for cross-distro integration testing. The host-side orchestrator manages the lifecycle of the test containers automatically.
+
+- **Run Multi-Distro Integration Tests**:
+  This builds and runs tests across Ubuntu, Debian, Fedora, and UBI9.
+  ```bash
+  # Run all distros
+  pytest tests/integration/test_distros.py
+
+  # Run a specific distro
+  pytest tests/integration/test_distros.py -k ubuntu -sss
+  ```
+
+- **Run Local Unit Tests**:
+  *(Note: Redirects DB to /tmp if not running as root)*
+  ```bash
+  pytest tests/
+  ```
+
 ## Future Roadmap
 While the backend daemon handles the heavy lifting of data collection, NetUserMon is architected to be modular. Future updates will include:
 *   **GNOME GUI**: A native GTK4/Libadwaita dashboard for parents/administrators.

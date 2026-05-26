@@ -87,9 +87,21 @@ jobs:
         distro: [ubi9, debian, ubuntu-24.04, fedora-40]
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Run Integration Tests (${{ matrix.distro }})
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
       run: |
-        docker build -t netusermon-test:${{ matrix.distro }} -f tests/integration/Dockerfile.${{ matrix.distro }} .
-        docker run --privileged netusermon-test:${{ matrix.distro }}
+        python -m pip install --upgrade pip
+        pip install pytest
+
+    - name: Run Integration Tests (${{ matrix.distro }})
+      env:
+        NETUSERMON_TEST_DISTROS: ${{ matrix.distro }}
+      run: |
+        pytest -v tests/integration/test_distros.py
+
 

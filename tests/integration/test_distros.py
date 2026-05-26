@@ -4,12 +4,8 @@ import time
 import os
 
 # List of distributions to test
-DISTROS = [
-    "ubuntu-24.04",
-    "debian",
-    "fedora-40",
-    "ubi9"
-]
+DISTROS = os.environ.get("NETUSERMON_TEST_DISTROS", "ubuntu-24.04,debian,fedora-40,ubi9").split(",")
+
 
 def run_command(cmd, check=True):
     """Utility to run shell commands and return combined output."""

@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libnfnetlink-dev libnetfilter-queue-dev
+        sudo apt-get install -y python3-dev libglib2.0-dev libgirepository1.0-dev libcairo2-dev pkg-config libnfnetlink-dev libnetfilter-queue-dev
         python -m pip install --upgrade pip
         pip install -r daemon/requirements.txt
         

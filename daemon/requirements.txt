@@ -1,0 +1,4 @@
+scapy
+NetfilterQueue
+pydbus
+PyGObject<3.50.0

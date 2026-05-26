@@ -1,0 +1,31 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip iptables sqlite3 iproute2 procps curl dbus \
+                       libnetfilter-queue-dev gcc python3-dev libgirepository1.0-dev gir1.2-glib-2.0 \
+                       systemd sqlite3 libcairo2-dev pkg-config && \
+    apt-get clean
+
+# Debian Bookworm (GLib 2.74) requires PyGObject < 3.50.0 for girepository-1.0 compatibility
+RUN pip3 install --break-system-packages scapy NetfilterQueue pydbus "PyGObject<3.50.0"
+
+RUN useradd -m -u 1001 testuser
+RUN mkdir -p /usr/share/netusermon-daemon/daemon \
+             /usr/share/netusermon-daemon/common \
+             /etc/dbus-1/system.d \
+             /var/lib/netusermon
+
+COPY daemon /usr/share/netusermon-daemon/daemon
+COPY common /usr/share/netusermon-daemon/common
+COPY etc/dbus-1/system.d/org.netusermon.Daemon.conf /etc/dbus-1/system.d/
+
+RUN echo '#!/bin/bash' > /usr/bin/netusermon-daemon && \
+    echo 'export PYTHONPATH=$PYTHONPATH:/usr/share/netusermon-daemon' >> /usr/bin/netusermon-daemon && \
+    echo 'python3 /usr/share/netusermon-daemon/daemon/main.py "$@"' >> /usr/bin/netusermon-daemon && \
+    chmod +x /usr/bin/netusermon-daemon
+
+WORKDIR /usr/share/netusermon-daemon
+COPY tests/integration/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

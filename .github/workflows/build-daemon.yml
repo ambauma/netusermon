@@ -1,0 +1,107 @@
+name: Build and Package NetUserMon Daemon
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-dev libglib2.0-dev libgirepository1.0-dev libcairo2-dev pkg-config libnfnetlink-dev libnetfilter-queue-dev
+        python -m pip install --upgrade pip
+        pip install -r daemon/requirements.txt
+        
+    - name: Package Daemon
+      run: |
+        mkdir -p build/usr/bin
+        mkdir -p build/usr/share/netusermon-daemon
+        mkdir -p build/etc/systemd/system
+        mkdir -p build/etc/dbus-1/system.d
+        
+        # Copy source code
+        cp -r daemon build/usr/share/netusermon-daemon/
+        cp -r common build/usr/share/netusermon-daemon/
+        
+        # Create a launcher script
+        cat <<EOF > build/usr/bin/netusermon-daemon
+        #!/bin/bash
+        export PYTHONPATH=\$PYTHONPATH:/usr/share/netusermon-daemon
+        python3 /usr/share/netusermon-daemon/daemon/main.py "\$@"
+        EOF
+        chmod +x build/usr/bin/netusermon-daemon
+        
+    - name: Install FPM
+      run: |
+        sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm
+        sudo gem install --no-document fpm
+
+    - name: Build DEB and RPM packages
+      run: |
+        fpm -s dir -t deb -n netusermon-daemon -v 0.1.0 \
+          --iteration 1 \
+          -C build \
+          -p netusermon-daemon_0.1.0_amd64.deb \
+          --description "NetUserMon Backend Daemon" \
+          --depends python3 \
+          --depends python3-scapy \
+          --depends libnetfilter-queue1
+          
+        fpm -s dir -t rpm -n netusermon-daemon -v 0.1.0 \
+          --iteration 1 \
+          -C build \
+          -p netusermon-daemon-0.1.0-1.x86_64.rpm \
+          --description "NetUserMon Backend Daemon" \
+          --depends python3 \
+          --depends python3-scapy \
+          --depends libnetfilter_queue
+        
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: netusermon-packages
+        path: |
+          *.deb
+          *.rpm
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        distro: [ubi9, debian, ubuntu-24.04, fedora-40]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+
+    - name: Run Integration Tests (${{ matrix.distro }})
+      env:
+        NETUSERMON_TEST_DISTROS: ${{ matrix.distro }}
+      run: |
+        pytest -v tests/integration/test_distros.py
+
+

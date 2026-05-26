@@ -1,0 +1,35 @@
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+RUN printf "[centos-stream-baseos]\nname=CentOS Stream 9 - BaseOS\nbaseurl=http://mirror.stream.centos.org/9-stream/BaseOS/\$basearch/os/\ngpgcheck=0\nenabled=1\n\n[centos-stream-appstream]\nname=CentOS Stream 9 - AppStream\nbaseurl=http://mirror.stream.centos.org/9-stream/AppStream/\$basearch/os/\ngpgcheck=0\nenabled=1\n\n[centos-stream-crb]\nname=CentOS Stream 9 - CRB\nbaseurl=http://mirror.stream.centos.org/9-stream/CRB/\$basearch/os/\ngpgcheck=0\nenabled=1\n" > /etc/yum.repos.d/centos-stream.repo && \
+    dnf install -y --allowerasing \
+                   python3 python3-pip iptables-nft sqlite iproute procps-ng curl dbus \
+                   dbus-common dbus-tools dbus-daemon \
+                   gcc python3-devel gobject-introspection-devel glib2-devel cairo-devel \
+                   cairo-gobject-devel pkgconf-pkg-config libnetfilter_queue-devel \
+                   gobject-introspection systemd && \
+    dnf clean all && \
+    rm /etc/yum.repos.d/centos-stream.repo
+
+# UBI 9 (GLib 2.66) requires PyGObject < 3.50.0 for girepository-1.0 compatibility
+RUN pip3 install scapy NetfilterQueue pydbus "PyGObject<3.50.0"
+
+RUN useradd -m -u 1001 testuser
+RUN mkdir -p /usr/share/netusermon-daemon/daemon \
+             /usr/share/netusermon-daemon/common \
+             /etc/dbus-1/system.d \
+             /var/lib/netusermon
+
+COPY daemon /usr/share/netusermon-daemon/daemon
+COPY common /usr/share/netusermon-daemon/common
+COPY etc/dbus-1/system.d/org.netusermon.Daemon.conf /etc/dbus-1/system.d/
+
+RUN echo '#!/bin/bash' > /usr/bin/netusermon-daemon && \
+    echo 'export PYTHONPATH=$PYTHONPATH:/usr/share/netusermon-daemon' >> /usr/bin/netusermon-daemon && \
+    echo 'python3 /usr/share/netusermon-daemon/daemon/main.py "$@"' >> /usr/bin/netusermon-daemon && \
+    chmod +x /usr/bin/netusermon-daemon
+
+WORKDIR /usr/share/netusermon-daemon
+COPY tests/integration/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
